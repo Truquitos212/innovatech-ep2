@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - deploy
+      workflow_dispatch:
 
 jobs:
   # ETAPA 1 y 2: BUILD y PUSH
