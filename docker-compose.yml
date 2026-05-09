@@ -1,159 +1,82 @@
 version: '3.8'
 
-
-
 services:
-
- # 1. Base de Datos (Persistencia)
-
- db:
-
-  image: mysql:8.0 # Si usan PostgreSQL, cambia la imagen a postgres:15
-
-  container_name: db_innovatech
-
-  restart: always
-
-  environment:
-
-   MYSQL_ROOT_PASSWORD: root_password
-
-   MYSQL_DATABASE: innovatech_db
-
-   MYSQL_USER: appuser
-
-   MYSQL_PASSWORD: apppassword
-
-  ports:
-
-   - "3306:3306"
-
-  volumes:
-
-   - db_data:/var/lib/mysql # AQUÍ ESTÁ EL 100% DEL IE3 (Persistencia)
-
-  networks:
-
-   - innovatech-network
-
-
-
- # 2. Backend 1: Ventas
-
- backend-ventas:
-
-  build: 
-
-   context: ./back-Ventas_SpringBoot/Springboot-API-REST
-
-   dockerfile: Dockerfile
-
-  container_name: backend_ventas
-
-  restart: always
-
-  environment:
-
-   - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/innovatech_db
-
-   - SPRING_DATASOURCE_USERNAME=appuser
-
-   - SPRING_DATASOURCE_PASSWORD=apppassword
-
-  ports:
-
-   - "8081:8080" # Expone internamente en 8081
-
-  depends_on:
-
-   - db
-
-  networks:
-
-   - innovatech-network
-
-
-
- # 3. Backend 2: Despachos
-
- backend-despachos:
-
-  build: 
-
-   context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
-
-   dockerfile: Dockerfile
-
-  container_name: backend_despachos
-
-  restart: always
-
-  environment:
-
-   - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/innovatech_db
-
-   - SPRING_DATASOURCE_USERNAME=appuser
-
-   - SPRING_DATASOURCE_PASSWORD=apppassword
-
-  ports:
-
-   - "8082:8080" # Expone internamente en 8082
-
-  depends_on:
-
-   - db
-
-  networks:
-
-   - innovatech-network
-
-
-
- # 4. Frontend
-
- frontend:
-
-  build: 
-
-   context: ./front_despacho
-
-   dockerfile: Dockerfile
-
-  container_name: frontend_app
-
-  restart: always
-
-  ports:
-
-   - "80:8080" # Mapea el puerto 80 del servidor al 8080 de nuestro Nginx unprivileged
-
-  depends_on:
-
-   - backend-ventas
-
-   - backend-despachos
-
-  networks:
-
-   - innovatech-network
-
-
-
-# ==========================================
-
-# DEFINICIÓN DE VOLÚMENES Y REDES
-
-# ==========================================
-
-volumes:
-
- db_data: # Declaración del Named Volume (IE3)
-
-
-
+  # 1. BASE DE DATOS (Con persistencia exigida en IE3)
+  db:
+    image: mysql:8.0
+    container_name: app_database
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: innovadb
+      MYSQL_USER: innovauser
+      MYSQL_PASSWORD: innovapassword
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+    volumes:
+      - db-data:/var/lib/mysql # <-- ¡Aquí está la Persistencia del 100%!
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # 2. BACKEND - DESPACHOS
+  back-despachos:
+    build:
+      context: ./back-Despachos_SpringBoot
+      dockerfile: Dockerfile
+    container_name: backend_despachos
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/innovadb?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=innovauser
+      - SPRING_DATASOURCE_PASSWORD=innovapassword
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy # Espera a que la BD esté lista
+
+  # 3. BACKEND - VENTAS
+  back-ventas:
+    build:
+      context: ./back-Ventas_SpringBoot
+      dockerfile: Dockerfile
+    container_name: backend_ventas
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/innovadb?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=innovauser
+      - SPRING_DATASOURCE_PASSWORD=innovapassword
+    ports:
+      - "8081:8080" # Lo exponemos en el 8081 para que no choque con Despachos
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 4. FRONTEND
+  frontend:
+    build:
+      context: ./front_despacho
+      dockerfile: Dockerfile
+    container_name: frontend_app
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - back-despachos
+      - back-ventas
+
+# DEFINICIÓN DE REDES (Exigido para el 100% del IE2)
 networks:
+  app-network:
+    driver: bridge
 
- innovatech-network:
-
-  driver: bridge # Red aislada para seguridad (IE2)
+# DEFINICIÓN DE VOLÚMENES (Exigido para el 100% del IE3)
+volumes:
+  db-data:
+    name: persistencia_innovatech
