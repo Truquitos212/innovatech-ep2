@@ -24,7 +24,7 @@ services:
   # 2. BACKEND - DESPACHOS
   back-despachos:
     build:
-      context: ./back-Despachos_SpringBoot
+      context: build: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
       dockerfile: Dockerfile
     container_name: backend_despachos
     environment:
@@ -42,7 +42,7 @@ services:
   # 3. BACKEND - VENTAS
   back-ventas:
     build:
-      context: ./back-Ventas_SpringBoot
+      context: ./back-Ventas_SpringBoot/Springboot-API-REST
       dockerfile: Dockerfile
     container_name: backend_ventas
     environment:
